@@ -30,7 +30,7 @@
   }
 
   function wireRoot(root) {
-    if (root.__auratryInit) return;
+    if (!root || root.__auratryInit) return;
     root.__auratryInit = true;
 
     const btn = $('[data-auratry]', root);
@@ -54,8 +54,10 @@
       setLoading(root, false);
       selfieFile = null;
       if (runBtn) runBtn.disabled = true;
-      selfiePreview?.removeAttribute('src');
-      resultImg?.removeAttribute('src');
+
+      if (selfiePreview) selfiePreview.removeAttribute('src');
+      if (resultImg) resultImg.removeAttribute('src');
+
       if (fileInput) fileInput.value = '';
       if (camInput) camInput.value = '';
     }
@@ -65,16 +67,27 @@
       const pImg = btn?.dataset.productImage || '';
       if (title1) title1.textContent = pTitle;
       if (title2) title2.textContent = pTitle;
-      if (img) img.src = pImg;
+      if (img && pImg) img.src = pImg;
     }
 
     function handleFile(file) {
       if (!file) return;
-      if (!file.type.startsWith('image/')) return setError(root, 'Please choose an image.');
-      if (file.size > 8 * 1024 * 1024) return setError(root, 'Image too large (max 8MB).');
+
+      if (!file.type || !file.type.startsWith('image/')) {
+        return setError(root, 'Please choose an image.');
+      }
+
+      if (file.size > 8 * 1024 * 1024) {
+        return setError(root, 'Image too large (max 8MB).');
+      }
+
       selfieFile = file;
-      selfiePreview.src = URL.createObjectURL(file);
-      runBtn.disabled = false;
+
+      if (selfiePreview) {
+        selfiePreview.src = URL.createObjectURL(file);
+      }
+
+      if (runBtn) runBtn.disabled = false;
       setError(root, '');
     }
 
@@ -87,7 +100,7 @@
       closeModal(root);
     }
 
-    // ONLY open on explicit click
+    // open on click
     btn?.addEventListener('click', () => {
       populateProduct();
       reset();
@@ -106,8 +119,8 @@
       if (e.target === overlay) cleanupClose();
     });
 
-    fileInput?.addEventListener('change', (e) => handleFile(e.target.files?.[0]));
-    camInput?.addEventListener('change', (e) => handleFile(e.target.files?.[0]));
+    fileInput?.addEventListener('change', (e) => handleFile(e.target?.files?.[0]));
+    camInput?.addEventListener('change', (e) => handleFile(e.target?.files?.[0]));
 
     runBtn?.addEventListener('click', async () => {
       console.log("[AuraTry] Generate clicked", { hasSelfie: !!selfieFile });
@@ -126,11 +139,20 @@
         fd.append('productTitle', productTitle);
         fd.append('productImageUrl', productImageUrl);
 
+        // ✅ Shopify App Proxy storefront path (NOT Render URL)
+        // Works when App Proxy is:
+        // Proxy URL: https://aura-try.onrender.com/proxy
+        // Prefix: apps
+        // Subpath: aura-try
         const url = '/apps/aura-try/tryon';
 
         console.log('[AuraTry] POST', url, { productTitle, productImageUrl });
 
-        const res = await fetch(url, { method: 'POST', body: fd });
+        const res = await fetch(url, {
+          method: 'POST',
+          body: fd,
+          headers: { 'Accept': 'application/json' },
+        });
 
         const text = await res.text();
         console.log('[AuraTry] status', res.status, 'raw:', text);
@@ -139,7 +161,7 @@
         try {
           data = JSON.parse(text);
         } catch {
-          throw new Error('Server did not return JSON. Check endpoint path.');
+          throw new Error('Server did not return JSON. Check App Proxy path + Render endpoint.');
         }
 
         if (!res.ok || !data.ok) {
@@ -149,27 +171,32 @@
         const { mimeType, base64 } = data.result || {};
         if (!mimeType || !base64) throw new Error('Missing result image from server');
 
-        resultImg.src = `data:${mimeType};base64,${base64}`;
+        if (resultImg) {
+          resultImg.src = `data:${mimeType};base64,${base64}`;
+        }
       } catch (e) {
         console.error(e);
         setError(root, String(e?.message || e));
       } finally {
-        // THIS guarantees spinner always stops
         setLoading(root, false);
       }
     });
-
   }
 
-  // Init all roots
-  document.querySelectorAll('.auratry-root').forEach(wireRoot);
+  // ✅ initAll was missing in your code — fixed now
+  function initAll() {
+    document.querySelectorAll('.auratry-root').forEach(wireRoot);
+  }
 
-  // Theme editor me re-render hota hai; lekin auto observer ki wajah se issues aate hain
-  // So: observer ONLY outside editor
+  // Initial init
+  initAll();
+
+  // Theme editor me observer issues: keep it off in editor
   if (!IS_EDITOR) {
-    new MutationObserver(initAll).observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
+    let t = null;
+    new MutationObserver(() => {
+      clearTimeout(t);
+      t = setTimeout(initAll, 50);
+    }).observe(document.documentElement, { childList: true, subtree: true });
   }
 })();
