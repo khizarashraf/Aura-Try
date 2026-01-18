@@ -1,0 +1,85 @@
+{% if product %}
+  {% assign img_obj = product.featured_image %}
+  {% if img_obj == blank %}
+    {% assign img_obj = product.images.first %}
+  {% endif %}
+  {% assign product_image_url = img_obj | image_url: width: 1024 %}
+
+  {% assign variant_id = product.selected_or_first_available_variant.id %}
+
+  <div class="auratry-root">
+    <button
+      type="button"
+      class="auratry-btn"
+      data-auratry
+      data-product-title="{{ product.title | escape }}"
+      data-product-image="{{ product_image_url }}"
+      data-product-id="{{ product.id }}"
+      data-variant-id="{{ variant_id }}"
+    >
+      Try On
+    </button>
+
+    <div class="auratry-modal-overlay" data-auratry-overlay hidden>
+      <div class="auratry-modal" role="dialog" aria-modal="true" aria-label="AuraTry Try On">
+        <div class="auratry-modal-header">
+          <div>
+            <div class="auratry-title">Try On</div>
+            <div class="auratry-subtitle" data-auratry-product-title></div>
+          </div>
+          <button type="button" class="auratry-icon-btn" data-auratry-close aria-label="Close">✕</button>
+        </div>
+
+        <div class="auratry-product-row">
+          <img class="auratry-product-img" data-auratry-product-img alt="Product image" />
+          <div class="auratry-product-meta">
+            <div class="auratry-meta-label">Product</div>
+            <div class="auratry-meta-value" data-auratry-product-title-2></div>
+          </div>
+        </div>
+
+        <div class="auratry-actions">
+          <label class="auratry-btn secondary">
+            Upload selfie
+            <input type="file" accept="image/*" hidden data-auratry-file />
+          </label>
+
+          <label class="auratry-btn secondary">
+            Use camera
+            <input type="file" accept="image/*" capture="user" hidden data-auratry-camera />
+          </label>
+
+          <button type="button" class="auratry-btn" data-auratry-run disabled>
+            Generate Try-On
+          </button>
+        </div>
+
+        <div class="auratry-previews">
+          <div class="auratry-preview-box">
+            <div class="auratry-meta-label">Your selfie</div>
+            <img class="auratry-preview-img" data-auratry-selfie-preview alt="Selfie preview" />
+          </div>
+
+          <div class="auratry-preview-box">
+            <div class="auratry-meta-label">Result</div>
+            <div class="auratry-result-wrap">
+              <div class="auratry-spinner" data-auratry-spinner hidden>Loading…</div>
+              <img class="auratry-preview-img" data-auratry-result alt="Try-on result" />
+            </div>
+          </div>
+        </div>
+
+        <div class="auratry-error" data-auratry-error hidden></div>
+      </div>
+    </div>
+  </div>
+{{ 'auratry-hand.js' | asset_url | script_tag }}
+{% endif %}
+
+{% schema %}
+{
+  "name": "AuraTry – Try On Button",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
